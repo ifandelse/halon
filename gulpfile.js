@@ -1,60 +1,71 @@
 var gulp = require( "gulp" );
 var gutil = require( "gulp-util" );
-var sourcemaps = require( "gulp-sourcemaps" );
 var rename = require( "gulp-rename" );
-var header = require( "gulp-header" );
-var pkg = require( "./package.json" );
-var hintNot = require( "gulp-hint-not" );
 var uglify = require( "gulp-uglify" );
-var jshint = require( "gulp-jshint" );
+var _ = require( "lodash" );
+var eslint = require( "gulp-eslint" );
 var jscs = require( "gulp-jscs" );
 var gulpChanged = require( "gulp-changed" );
+var webpack = require( "gulp-webpack" );
+var path = require( "path" );
+var karma = require( "karma" );
+var mocha = require( "gulp-spawn-mocha" );
+var sourcemaps = require( "gulp-sourcemaps" );
 
-var banner = [ "/**",
-	" * <%= pkg.name %> - <%= pkg.description %>",
-	" * Author: <%= pkg.author %>",
-	" * Version: v<%= pkg.version %>",
-	" * Url: <%= pkg.homepage %>",
-	" * License(s): <% pkg.licenses.forEach(function( license, idx ){ %><%= license.type %> Copyright (c) <%= ( new Date() ).getFullYear() %> LeanKit<% if(idx !== pkg.licenses.length-1) { %>, <% } %><% }); %>",
-	" */",
-"" ].join( "\n" );
+gulp.task( "default", [ "build" ] );
 
-function buildLib() {
+gulp.task( "build", [ "format" ], function() {
 	return gulp.src( "src/halon.js" )
-		.pipe( hintNot() )
-		.pipe( sourcemaps.init() )
-		.pipe( header( banner, {
-			pkg: pkg
-		} ) )
-		.pipe( gulp.dest( "lib/" ) );
-}
-
-gulp.task( "build:quick", function() {
-	return buildLib();
-} );
-
-gulp.task( "build:minified", [ "format" ], function() {
-	return buildLib()
-		.pipe( header( banner, {
-			pkg: pkg
-		} ) )
-		.pipe( sourcemaps.write() )
+		.pipe( webpack( require( "./webpack.config.js" ) ) )
+		.pipe( gulp.dest( "lib/" ) )
+		.pipe( sourcemaps.init( { loadMaps: true } ) )
 		.pipe( uglify( {
+			preserveComments: "license",
 			compress: {
-				negate_iife: false // jshint ignore:line
+				/*eslint-disable */
+				negate_iife: false
+				/*eslint-enable  */
 			}
 		} ) )
-		.pipe( header( banner, {
-			pkg: pkg
-		} ) )
 		.pipe( rename( "halon.min.js" ) )
+		.pipe( sourcemaps.write( "./" ) )
 		.pipe( gulp.dest( "lib/" ) );
 } );
 
-gulp.task( "default", [ "build:minified" ] );
+function runTests( options, done ) {
+	var server = new karma.Server( _.extend( {
+		configFile: path.join( __dirname, "/karma.conf.js" ),
+		singleRun: true
 
-var mocha = require( "gulp-spawn-mocha" );
-gulp.task( "mocha", function() {
+		// no-op keeps karma from process.exit'ing gulp
+	}, options ), done || function() {} );
+
+	server.start();
+}
+
+gulp.task( "test", [ "build" ], function( done ) {
+	runTests( { reporters: [ "spec" ] }, function( err ) {
+		if ( err !== 0 ) {
+			// Exit with the error code
+			process.exit( err );
+		} else {
+			done( null );
+		}
+	} );
+} );
+
+gulp.task( "coverage", [ "build" ], function( done ) {
+	runTests( {}, function( err ) {
+		if ( err !== 0 ) {
+			// Exit with the error code
+			process.exit( err );
+		} else {
+			done( null );
+		}
+	} );
+} );
+
+gulp.task( "mocha", [ "build" ], function() {
 	return gulp.src( [ "spec/**/*.spec.js" ], { read: false } )
 		.pipe( mocha( {
 			require: [ "spec/helpers/node-setup.js" ],
@@ -66,15 +77,15 @@ gulp.task( "mocha", function() {
 		.on( "error", console.warn.bind( console ) );
 } );
 
-gulp.task( "jshint", function() {
+gulp.task( "lint", function() {
 	return gulp.src( [ "src/**/*.js", "spec/**/*.spec.js" ] )
-		.pipe( jshint() )
-		.pipe( jshint.reporter( "jshint-stylish" ) )
-		.pipe( jshint.reporter( "fail" ) );
+	.pipe( eslint() )
+	.pipe( eslint.format() )
+	.pipe( eslint.failOnError() );
 } );
 
-gulp.task( "format", [ "jshint" ], function() {
-	return gulp.src( [ "**/*.js", "!node_modules/**" ] )
+gulp.task( "format", [ "lint" ], function() {
+	return gulp.src( [ "*.js", "{spec,src}/**/*.js" ] )
 		.pipe( jscs( {
 			configPath: ".jscsrc",
 			fix: true
@@ -91,5 +102,3 @@ gulp.task( "watch", function() {
 	gulp.watch( "src/**/*", [ "default" ] );
 	gulp.watch( "{lib,spec}/**/*", [ "mocha" ] );
 } );
-
-gulp.task( "continuous", [ "mocha", "watch" ] );

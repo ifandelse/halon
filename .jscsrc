@@ -3,10 +3,12 @@
 	"excludeFiles": [
 		"node_modules/**",
 		"coverage/**",
-	  	"lib/**"
+		"lib/**"
 	],
 
-	// Normal jscsrc
+	"esnext": true,
+
+  // Normal jscsrc
 	"disallowKeywords": [
 		"with"
 	],

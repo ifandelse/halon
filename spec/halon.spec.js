@@ -1,3 +1,4 @@
+/* global requestFactory, halon */
 describe( "halon", function() {
 	describe( "when initializing a halon client", function() {
 		describe( "with no start delay", function() {
@@ -388,7 +389,7 @@ describe( "halon", function() {
 					.then( function( hc ) {
 						return hc.board.self( { id: 101 } ).then( function( bd ) {
 							board = bd;
-							board.getLanes().then( function( l ) {
+							return board.getLanes().then( function( l ) {
 								lanes = l;
 							} );
 						} );
@@ -479,7 +480,7 @@ describe( "halon", function() {
 			it( "should allow for parallel resource link invocations", function() {
 				return hc.connect()
 					.then( function( hc ) {
-						hc(
+						return hc(
 							hc.user.self( { id: 1 } ),
 							hc.board.self( { id: 101 } ),
 							hc.board.getCardTypes( { id: 101 } )
@@ -510,7 +511,7 @@ describe( "halon", function() {
 				} );
 				return hc.connect()
 					.then( function( hc ) {
-						hc.board.getCards( { id: 101 } ).then( function( result ) {
+						return hc.board.getCards( { id: 101 } ).then( function( result ) {
 							collection = result;
 						} );
 					} );
@@ -560,9 +561,9 @@ describe( "halon", function() {
 					adapter: adapterFactory( results ),
 					version: 3
 				} );
-				hc.connect()
+				return hc.connect()
 					.then( function( hc ) {
-						hc.package.list( {
+						return hc.package.list( {
 							project: "one",
 							build: 1,
 							version: "0.1.0"
@@ -599,9 +600,9 @@ describe( "halon", function() {
 					adapter: adapterFactory( results ),
 					version: 3
 				} );
-				hc.connect()
+				return hc.connect()
 					.then( function( hc ) {
-						hc.package.getProject( {
+						return hc.package.getProject( {
 							"?": {
 								owner: "me",
 								build: 1,
@@ -627,7 +628,6 @@ describe( "halon", function() {
 		describe( "when calling an action with user supplied parameters and array body", function() {
 			var hc;
 			var results = [];
-			var list;
 			before( function() {
 				hc = halon( {
 					root: "http://localhost:8088/analytics/api",
@@ -637,14 +637,14 @@ describe( "halon", function() {
 				} );
 				return hc.connect()
 					.then( function( hc ) {
-						hc.board.edit( {
+						return hc.board.edit( {
 							id: 101,
 							body: [
 								{ op: "change", path: "title", value: "New Board Title" },
 								{ op: "change", path: "description", value: "This is a new description for the board" }
 							]
 						} ).then( function( result ) {
-							list = result;
+							results.push( result );
 						} );
 					} );
 			} );
@@ -680,7 +680,7 @@ describe( "halon", function() {
 				} );
 				return hc.connect()
 					.then( function( hc ) {
-						hc.package.upload( {
+						return hc.package.upload( {
 							formData: {
 								"myFile.txt": { pretendFileStream: true }
 							}
@@ -714,9 +714,9 @@ describe( "halon", function() {
 					adapter: halon.requestAdapter( fauxRequest ),
 					version: 3
 				} );
-				hc.connect()
+				return hc.connect()
 					.then( function( hc ) {
-						hc.elevated.gimme( {
+						return hc.elevated.gimme( {
 							this: "is a test",
 							for: "a json body"
 						} ).then( function( result ) {
@@ -757,7 +757,7 @@ describe( "halon", function() {
 				} );
 				return hc.connect()
 					.then( function( hc ) {
-						hc.this.delete()
+						return hc.this.delete()
 							.then( function( result ) {
 								resp = result;
 							} );
@@ -781,7 +781,6 @@ describe( "halon", function() {
 
 		describe( "when root api is missing (404)", function() {
 			var results = [];
-			var resp;
 			var fauxRequest = requestFactory( adapterFactory( results ) );
 			var consoleStub;
 			var hc;
@@ -810,7 +809,6 @@ describe( "halon", function() {
 
 		describe( "when response is >= 400", function() {
 			var results = [];
-			var resp;
 			var fauxRequest = requestFactory( adapterFactory( results ) );
 			var consoleStub;
 			var hc;
